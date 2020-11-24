@@ -39,8 +39,8 @@ def omloga(args)
     exit
   end
 
-  def db_session
-    $DB_SESSION
+  def db_client
+    $DB_CLIENT
   end
 
   def logs_collection
@@ -51,9 +51,9 @@ def omloga(args)
     $REQUEST_HASH
   end
 
-  $DB_SESSION = Mongo::Client.new(options.dburi)
-  db_session.logger.level = Logger::INFO
-  $DB_LOGS_COLLECTION = db_session[options.collection]
+  $DB_CLIENT = Mongo::Client.new(options.dburi)
+  db_client.logger.level = Logger::INFO
+  $DB_LOGS_COLLECTION = db_client[options.collection]
   $REQUEST_HASH = {}
   $LOG_FILE = args[0]
 
@@ -113,6 +113,11 @@ def omloga(args)
     pid = get_pid(log_line)
     uuid = get_uuid(log_line)
     req = request_hash[uuid]
+    if uuid == nil
+      lines_skipped += 1
+      skipped_lines.print log_line if log_skip
+      next
+    end 
 
     if is_start_line?(log_line)
       if req

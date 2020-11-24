@@ -1,7 +1,7 @@
 Gem::Specification.new do |s|
   s.name        = 'omloga'
   s.version     = '0.0.3'
-  s.date        = '2013-10-07'
+  s.date        = '2020-11-24'
   s.summary     = "A Ruby on Rails log parser and stitcher."
   s.description = "Stitches together log lines of every request and inserts them as one record in MongoDB for easier analysis"
   s.authors     = ["Srirang G Doddihal"]
