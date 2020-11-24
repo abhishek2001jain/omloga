@@ -1,4 +1,4 @@
-require 'moped'
+require 'mongo'
 require 'optparse'
 require 'ostruct'
 require 'omloga/request'
@@ -51,7 +51,8 @@ def omloga(args)
     $REQUEST_HASH
   end
 
-  $DB_SESSION = Moped::Session.connect(options.dburi)
+  $DB_SESSION = Mongo::Client.new(options.dburi)
+  db_session.logger.level = Logger::INFO
   $DB_LOGS_COLLECTION = db_session[options.collection]
   $REQUEST_HASH = {}
   $LOG_FILE = args[0]
@@ -87,6 +88,15 @@ def omloga(args)
     end
   end
 
+  def get_uuid(line)
+    match_data = line.match(/([a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12})/)
+    if match_data
+      return match_data[1]
+    else
+      return nil
+    end
+  end
+
   line_count = 0
   request_count = 0
   lines_skipped = 0
@@ -99,16 +109,18 @@ def omloga(args)
   end
 
   File.foreach($LOG_FILE) do |log_line|
+    log_line.strip!
     pid = get_pid(log_line)
-    req = request_hash[pid]
+    uuid = get_uuid(log_line)
+    req = request_hash[uuid]
 
     if is_start_line?(log_line)
       if req
         req.add_start_line(log_line)
         req.count+= 1
       else
-        req = Omloga::Request.new(pid, log_line)
-        request_hash[pid] = req
+        req = Omloga::Request.new(uuid, pid, log_line)
+        request_hash[uuid] = req
       end
     else
       unless req
@@ -123,8 +135,8 @@ def omloga(args)
         req.complete_count+= 1
 
         if req.complete_count >= req.count
-          logs_collection.find(req.id_doc).upsert(req.mongo_doc)
-          request_hash.delete(pid)
+          logs_collection.find(req.id_doc).update_one(req.mongo_doc, {upsert: true})
+          request_hash.delete(uuid)
           request_count+= req.count
         end
       else
